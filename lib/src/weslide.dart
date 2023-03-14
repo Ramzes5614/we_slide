@@ -204,14 +204,11 @@ class WeSlide extends StatefulWidget {
         assert(footerHeight >= 0.0, 'footerHeight cannot be negative'),
         assert(appBarHeight >= 0.0, 'appBarHeight cannot be negative'),
         assert(panel != null, 'panel could not be null'),
-        assert(panelMaxSize >= panelMinSize,
-            'panelMaxSize cannot be less than panelMinSize'),
+        assert(panelMaxSize >= panelMinSize, 'panelMaxSize cannot be less than panelMinSize'),
         fadeSequence = fadeSequence ??
             [
-              TweenSequenceItem<double>(
-                  weight: 1.0, tween: Tween(begin: 1, end: 0)),
-              TweenSequenceItem<double>(
-                  weight: 8.0, tween: Tween(begin: 0, end: 0)),
+              TweenSequenceItem<double>(weight: 1.0, tween: Tween(begin: 1, end: 0)),
+              TweenSequenceItem<double>(weight: 8.0, tween: Tween(begin: 0, end: 0)),
             ],
         super(key: key) {
     if (controller == null) {
@@ -232,28 +229,37 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
   // Main Animation Controller
   late AnimationController _ac;
 
+  // Panel animation controller
+  late AnimationController _acPanel;
+
   // Panel Border Radius Effect[Tween]
   late Animation<double> _panelBorderRadius;
+
   // Body Border Radius Effect [Tween]
   late Animation<double> _bodyBorderRadius;
+
   // Scale Animation Effect [Tween]
   late Animation<double> _scaleAnimation;
+
   // PanelHeader animation Effect [Tween]
   late Animation<double> _fadeAnimation;
+
+  // Panel animation Effect [Tween]
+  late Animation<double> _panelFadeAnimation;
+
   // Footer Animation Controller
   late AnimationController _acFooter;
 
   // Get current controller
   WeSlideController get _effectiveController => widget.controller!;
+
   WeSlideController get _effectiveFooterController => widget.footerController!;
 
   // Check if panel is visible
-  bool get _isPanelVisible =>
-      _ac.status == AnimationStatus.completed ||
-      _ac.status == AnimationStatus.forward;
+  bool get _isPanelVisible => _ac.status == AnimationStatus.completed || _ac.status == AnimationStatus.forward;
+
   bool get _isFooterVisible =>
-      _acFooter.status == AnimationStatus.completed ||
-      _acFooter.status == AnimationStatus.forward;
+      _acFooter.status == AnimationStatus.completed || _acFooter.status == AnimationStatus.forward;
 
   @override
   void initState() {
@@ -262,32 +268,30 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
     _effectiveFooterController.addListener(_animatedFooter);
     // Animation controller;
     _ac = AnimationController(
-        vsync: this,
-        duration: widget.animateDuration,
-        value: _effectiveController.isOpened ? 1 : 0);
+        vsync: this, duration: widget.animateDuration, value: _effectiveController.isOpened ? 1 : 0);
+
+    _acPanel = AnimationController(
+        vsync: this, duration: widget.animateDuration, value: _effectiveController.isOpened ? 0 : 1);
+
     _acFooter = AnimationController(
         vsync: this,
         duration: widget.animateDuration,
         value: _effectiveFooterController.isOpened ? 1 : 0); // show by default
     // panel Border radius animation
 
-    _panelBorderRadius = Tween<double>(
-            begin: widget.panelBorderRadiusBegin,
-            end: widget.panelBorderRadiusEnd)
-        .animate(_ac);
+    _panelBorderRadius =
+        Tween<double>(begin: widget.panelBorderRadiusBegin, end: widget.panelBorderRadiusEnd).animate(_ac);
     // body border radius animation
 
-    _bodyBorderRadius = Tween<double>(
-            begin: widget.bodyBorderRadiusBegin,
-            end: widget.bodyBorderRadiusEnd)
-        .animate(_ac);
+    _bodyBorderRadius =
+        Tween<double>(begin: widget.bodyBorderRadiusBegin, end: widget.bodyBorderRadiusEnd).animate(_ac);
     // Transform scale animation
 
-    _scaleAnimation = Tween<double>(
-            begin: widget.transformScaleBegin, end: widget.transformScaleEnd)
-        .animate(_ac);
+    _scaleAnimation = Tween<double>(begin: widget.transformScaleBegin, end: widget.transformScaleEnd).animate(_ac);
     // Fade Animation sequence
     _fadeAnimation = TweenSequence(widget.fadeSequence).animate(_ac);
+
+    _panelFadeAnimation = Tween<double>(begin: 1, end: 0).animate(_acPanel);
 
     // Super Init State
     super.initState();
@@ -305,6 +309,14 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
   void _animatedPanel() {
     if (_effectiveController.value != _isPanelVisible) {
       _ac.fling(velocity: _isPanelVisible ? -2.0 : 2.0);
+      _acPanel.fling(velocity: _isPanelVisible ? -2.0 : 2.0);
+    }
+  }
+
+  /// Animate the panel [ValueNotifier]
+  void _animatePanel() {
+    if (_effectiveFooterController.value != _isFooterVisible) {
+      _acFooter.fling(velocity: _isFooterVisible ? -2.0 : 2.0);
     }
   }
 
@@ -320,6 +332,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
   void dispose() {
     ///Animation Controller
     _ac.dispose();
+    _acPanel.dispose();
     _acFooter.dispose();
 
     /// ValueNotifier
@@ -335,6 +348,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
       return;
     }
     _ac.value -= 1.5 * fractionDragged;
+    _acPanel.value += 1.5 * fractionDragged;
   }
 
   /// Gesture Vertical End [GestureDetector]
@@ -345,36 +359,34 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
       _ac.reverse().then((x) {
         _effectiveController.value = false;
       });
+      _acPanel.forward();
     } else if (velocity < 0.0) {
       if (widget.isUpSlide) {
         _ac.forward().then((x) {
           _effectiveController.value = true;
         });
+        _acPanel.value = 0;
       }
     } else if (_ac.value >= 0.5 && endDetails.primaryVelocity == 0.0) {
       _ac.forward().then((x) {
         _effectiveController.value = true;
       });
+      _acPanel.value = 0;
     } else {
       _ac.reverse().then((x) {
         _effectiveController.value = false;
       });
+      _acPanel.forward();
     }
   }
 
   // Get Body Animation [Paralax]
-  Animation<Offset> _getAnimationOffSet(
-      {required double minSize, required double maxSize}) {
-    final _closedPercentage =
-        (widget.panelMaxSize - minSize) / widget.panelMaxSize;
+  Animation<Offset> _getAnimationOffSet({required double minSize, required double maxSize}) {
+    final _closedPercentage = (widget.panelMaxSize - minSize) / widget.panelMaxSize;
 
-    final _openPercentage =
-        (widget.panelMaxSize - maxSize) / widget.panelMaxSize;
+    final _openPercentage = (widget.panelMaxSize - maxSize) / widget.panelMaxSize;
 
-    return Tween<Offset>(
-            begin: Offset(0.0, _closedPercentage),
-            end: Offset(0.0, _openPercentage))
-        .animate(_ac);
+    return Tween<Offset>(begin: Offset(0.0, _closedPercentage), end: Offset(0.0, _openPercentage)).animate(_ac);
   }
 
   //Get Panel size
@@ -402,10 +414,8 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
   }
 
   double _getFooterOffset() {
-    final offset = widget.hideFooter
-        ? (_ac.value * -widget.footerHeight +
-            (1 - _acFooter.value) * -widget.footerHeight)
-        : .0;
+    final offset =
+        widget.hideFooter ? (_ac.value * -widget.footerHeight + (1 - _acFooter.value) * -widget.footerHeight) : .0;
     if (offset < -widget.footerHeight) {
       return -widget.footerHeight;
     } else if (offset > widget.footerHeight) {
@@ -426,9 +436,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
 
     /* if paralax*/
     if (widget.parallax) {
-      _location += _ac.value *
-          (widget.panelMaxSize - widget.panelMinSize) *
-          -widget.parallaxOffset;
+      _location += _ac.value * (widget.panelMaxSize - widget.panelMinSize) * -widget.parallaxOffset;
     }
     return _location;
   }
@@ -473,7 +481,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
                       topRight: Radius.circular(_bodyBorderRadius.value),
                     ),
                     child: SizedBox(
-                      height: _height - _getBodyHeight() - _getFooterOffset(),
+                      height: _height, //- _getBodyHeight() - _getFooterOffset(),
                       width: widget.bodyWidth ?? _width,
                       child: child,
                     ),
@@ -491,9 +499,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
                 /** Fix problem with body scroll */
                 if (_ac.value <= 0) return const SizedBox.shrink();
                 return BackdropFilter(
-                  filter: ImageFilter.blur(
-                      sigmaX: widget.blurSigma * _ac.value,
-                      sigmaY: widget.blurSigma * _ac.value),
+                  filter: ImageFilter.blur(sigmaX: widget.blurSigma * _ac.value, sigmaY: widget.blurSigma * _ac.value),
                   child: Container(
                     color: widget.blurColor.withOpacity(0.1),
                   ),
@@ -506,48 +512,46 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
               animation: _ac,
               builder: (context, _) {
                 return Container(
-                  color: _ac.value == 0.0
-                      ? null
-                      : widget.overlayColor
-                          .withOpacity(widget.overlayOpacity * _ac.value),
+                  color: _ac.value == 0.0 ? null : widget.overlayColor.withOpacity(widget.overlayOpacity * _ac.value),
                 );
               },
             ),
           /** Dismiss Panel **/
-          ValueListenableBuilder(
-            valueListenable: _effectiveController,
-            builder: (_, __, ___) {
-              if (_effectiveController.isOpened && widget.isDismissible) {
-                return GestureDetector(
-                  onTap: _effectiveController.hide,
-                  child: Container(
-                    color: Colors.transparent,
-                  ),
-                );
-              }
-              return const SizedBox();
-            },
-          ),
+          // ValueListenableBuilder(
+          //   valueListenable: _effectiveController,
+          //   builder: (_, __, ___) {
+          //     if (_effectiveController.isOpened && widget.isDismissible) {
+          //       return GestureDetector(
+          //         behavior: HitTestBehavior.translucent,
+          //         onTap: _effectiveController.hide,
+          //         child: Container(
+          //           color: Colors.transparent,
+          //         ),
+          //       );
+          //     }
+          //     return const SizedBox();
+          //   },
+          // ),
           /** Panel widget **/
           AnimatedBuilder(
             animation: Listenable.merge([_ac, _acFooter]),
             builder: (_, child) {
               return SlideTransition(
                 position: _getAnimationOffSet(
-                    maxSize: _getPanelLocation(),
-                    minSize: widget.panelMinSize + _getFooterOffset()),
-                child: GestureDetector(
-                  onVerticalDragUpdate: _handleVerticalUpdate,
-                  onVerticalDragEnd: _handleVerticalEnd,
-                  child: AnimatedContainer(
-                    height: widget.panelMaxSize,
-                    width: widget.panelWidth ?? _width,
-                    duration: const Duration(milliseconds: 200),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(_panelBorderRadius.value),
-                        topRight: Radius.circular(_panelBorderRadius.value),
-                      ),
+                    maxSize: _getPanelLocation(), minSize: widget.panelMinSize + _getFooterOffset()),
+                child: AnimatedContainer(
+                  height: widget.panelMaxSize,
+                  width: widget.panelWidth ?? _width,
+                  duration: const Duration(milliseconds: 200),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(_panelBorderRadius.value),
+                      topRight: Radius.circular(_panelBorderRadius.value),
+                    ),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onVerticalDragUpdate: _handleVerticalUpdate,
+                      onVerticalDragEnd: _handleVerticalEnd,
                       child: child,
                     ),
                   ),
@@ -557,9 +561,17 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
             child: Stack(
               children: <Widget>[
                 /** Panel widget **/
-                SizedBox(
-                  height: _height - _getPanelSize(),
-                  child: widget.panel!,
+                FadeTransition(
+                  opacity: _panelFadeAnimation,
+                  child: ValueListenableBuilder(
+                    valueListenable: _effectiveController,
+                    builder: (_, __, ___) {
+                      return SizedBox(
+                        height: _height - _getPanelSize(),
+                        child: widget.panel!,
+                      );
+                    },
+                  ),
                 ),
                 /** Panel Header widget **/
                 widget.panelHeader != null && widget.hidePanelHeader
@@ -568,9 +580,9 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
                         child: ValueListenableBuilder(
                           valueListenable: _effectiveController,
                           builder: (_, __, ___) {
+                            print(_effectiveController.isOpened);
                             return IgnorePointer(
-                              ignoring: _effectiveController.value &&
-                                  widget.hidePanelHeader,
+                              ignoring: _effectiveController.value && widget.hidePanelHeader,
                               child: widget.panelHeader,
                             );
                           },
@@ -578,9 +590,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
                       )
                     : const SizedBox.shrink(),
                 /** panelHeader widget is null ?**/
-                widget.panelHeader != null && !widget.hidePanelHeader
-                    ? widget.panelHeader!
-                    : const SizedBox.shrink(),
+                widget.panelHeader != null && !widget.hidePanelHeader ? widget.panelHeader! : const SizedBox.shrink(),
               ],
             ),
           ),
@@ -605,9 +615,7 @@ class _WeSlideState extends State<WeSlide> with TickerProviderStateMixin {
                   builder: (context, child) {
                     return Positioned(
                       height: widget.appBarHeight,
-                      top: widget.hideAppBar
-                          ? _ac.value * -widget.appBarHeight
-                          : 0.0,
+                      top: widget.hideAppBar ? _ac.value * -widget.appBarHeight : 0.0,
                       left: 0,
                       right: 0,
                       child: widget.appBar!,
